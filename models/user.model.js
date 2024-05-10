@@ -31,6 +31,10 @@ module.exports = {
     ]);
   },
 
+  fetchUserByIdInSubmitForm: async (id) => {
+    return db.query(`select * from acknowledge_details where id = '${id}'`);
+  },
+
   setUSerStatus: async (status, id) => {
     return db.query(`UPDATE user_register SET status  = ? WHERE id = ?`, [
       status,

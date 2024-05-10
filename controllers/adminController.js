@@ -243,16 +243,20 @@ exports.ppeReportSortByDate = async (req, res) => {
       const ppeRequest = response.find(
         (request) => request.userId === application.userId
       );
+
+      console.log('ppeRequest:', ppeRequest); // Add this line for debugging
+
       return {
-        id: ppeRequest.id,
+        id: ppeRequest ? ppeRequest.id : null,
         requestNo: ppeRequest ? ppeRequest.requestNo : null,
         totalItems: ppeRequest
-          ? Object.values(ppeRequest)
-              .filter((item) => typeof item === "object")
-              .reduce((acc, curr) => acc + parseInt(curr.numberRequired), 0)
-          : null,
+        ? Object.values(ppeRequest)
+            .filter((item) => typeof item === "object" && item !== null) // Filter out null items
+            .reduce((acc, curr) => acc + parseInt(curr.numberRequired || 0), 0)
+        : null,
+      
         driverName: `${application.firstName} ${application.lastName}`,
-        submissionDate: ppeRequest
+        submissionDate: ppeRequest && ppeRequest.submissionDate
           ? ppeRequest.submissionDate.toISOString().split("T")[0]
           : null,
         action: "", // Add action data here
@@ -272,13 +276,14 @@ exports.ppeReportSortByDate = async (req, res) => {
       data: mergedData,
     });
   } catch (error) {
-    console.log(error);
-    return res.status(201).send({
+    console.error(error);
+    return res.status(500).json({
       success: false,
       msg: Msg.err,
     });
   }
 };
+
 
 // ALL INCIDENT REPORTS
 
@@ -291,21 +296,20 @@ exports.allIncidentReports = async (req, res) => {
 
     const formattedData = applications.map((application) => {
       const bankRecord = bankDetails.find(
-        (record) => record.userId === application.userId
+        (record) => record.id === application.id
       );
       const conditionRecord = conditionDetails.find(
-        (record) => record.userId === application.userId
+        (record) => record.id === application.id
       );
       const recordNo = bankRecord ? bankRecord.recordNo : null;
-      // const location = conditionRecord? conditionRecord.location: ""
 
       return {
-        id: applications ? application.id : "",
+        id: application.id || null,
         recordNo: recordNo,
-        location: conditionRecord ? conditionRecord.location : "",
-        driverName: `${application.firstName} ${application.lastName}`,
-        clientName: bankRecord ? bankRecord.clientName : "",
-        vehicleNumber: bankRecord ? bankRecord.vehicleRegistrationNumber : "",
+        location: conditionRecord ? conditionRecord.location || "" : "",
+        driverName: `${application.firstName || ""} ${application.lastName || ""}`,
+        clientName: bankRecord ? bankRecord.clientName || "" : "",
+        vehicleNumber: bankRecord ? bankRecord.vehicleRegistrationNumber || "" : "",
       };
     });
 
@@ -316,72 +320,75 @@ exports.allIncidentReports = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    return res.status(201).json({ success: false, message: Msg.err });
+    return res.status(500).json({ success: false, message: Msg.err });
   }
 };
 
-// INCIDENT REPORT BY ONE
 exports.incidentReportOnlyOne = async (req, res) => {
   try {
     const { id } = req.query;
     await checkIsAdmin(req);
-    const policeResp = await getPoliceInformationById(id);
-    const damageResp = await getDamagePropertyById(id);
-    const bankResp = await getBankDetailById(id);
-    const condtionResp = await getConditionInformationById(id);
-    const driverResp = await getDriverStatementById(id);
+
+
+   // `${application.firstName || ""} ${application.lastName || ""}`
+    const [
+      allDriverResp,
+      policeResp,
+      damageResp,
+      bankResp,
+      conditionResp,
+      driverResp
+    ] = await Promise.all([
+      getAllDriverApplication(id),
+      getPoliceInformationById(id),
+      getDamagePropertyById(id),
+      getBankDetailById(id),
+      getConditionInformationById(id),
+      getDriverStatementById(id),
+    ]);
+    const allDriverRecord = allDriverResp.find((item) => item.id === parseInt(id));
 
     const bankRecord = bankResp.find((item) => item.id === parseInt(id));
     const policeRecord = policeResp.find((item) => item.id === parseInt(id));
     const damageRecord = damageResp.find((item) => item.id === parseInt(id));
-    const conditionRecord = condtionResp.find(
-      (item) => item.id === parseInt(id)
-    );
+    const conditionRecord = conditionResp.find((item) => item.id === parseInt(id));
     const driverRecord = driverResp.find((item) => item.id === parseInt(id));
 
     const formattedData = {
-      id: bankRecord.id,
-      recordNo: bankRecord.recordNo,
-      clientName: bankRecord.clientName,
-      vehicleRegistrationNumber: bankRecord.vehicleRegistrationNumber,
-      incidentReportedTo: bankRecord.incidentReportedTo.join(", "),
-      dateTimeOfIncident: new Date(
-        conditionRecord.dateTimeOfIncident
-      ).toDateString(),
-      roadNumber: conditionRecord.roadNumber,
-      location: conditionRecord.location,
-      speedInMPH: conditionRecord.speedInMPH,
-      lightLevel: conditionRecord.lightLevel,
-      weather: conditionRecord.weather.join(", "),
-      roadCondition: conditionRecord.roadCondition,
-      PoliceInvolved: policeRecord.PoliceInvolved === "1" ? "Yes" : "No",
-      statementGiven: policeRecord.statementGiven === "1" ? "Yes" : "No",
-      isVehicleDriveable:
-        damageRecord.isVehicleDriveable === "1" ? "Yes" : "No",
-      didTakePhotos: damageRecord.didTakePhotos,
-      wereYouInjured: damageRecord.wereYouInjured,
-      wereThereWitnesses:
-        damageRecord.wereThereWitnesses === "1" ? "Yes" : "No",
-      witnesses: damageRecord.witnesses || "",
-      liability: damageRecord.liability || "",
-      vehiclesInvolved: damageRecord.vehiclesInvolved === "1" ? "Yes" : "No",
-      wereYouOnMobile: damageRecord.wereYouOnMobile === "Yes" ? "Yes" : "No",
-      driverStatement: driverRecord.driverStatement,
-      signatureUrl: driverRecord.signatureUrl,
+      id: bankRecord ? bankRecord.id : null,
+      recordNo: bankRecord ? bankRecord.recordNo : null,
+      clientName: allDriverRecord ? `${allDriverRecord.firstName || ""} ${allDriverRecord.lastName || ""}` : null,
+      vehicleRegistrationNumber: bankRecord ? bankRecord.vehicleRegistrationNumber : null,
+      incidentReportedTo: bankRecord && bankRecord.incidentReportedTo ? bankRecord.incidentReportedTo.join(", ") : null,
+      dateTimeOfIncident: conditionRecord && conditionRecord.dateTimeOfIncident ? new Date(conditionRecord.dateTimeOfIncident).toDateString() : null,
+      roadNumber: conditionRecord ? conditionRecord.roadNumber : null,
+      location: conditionRecord ? conditionRecord.location || "" : "",
+      speedInMPH: conditionRecord ? conditionRecord.speedInMPH : null,
+      lightLevel: conditionRecord ? conditionRecord.lightLevel : null,
+      weather: conditionRecord && conditionRecord.weather ? conditionRecord.weather.join(", ") : null,
+      roadCondition: conditionRecord ? conditionRecord.roadCondition : null,
+      PoliceInvolved: policeRecord && policeRecord.PoliceInvolved === "1" ? "Yes" : "No",
+      statementGiven: policeRecord && policeRecord.statementGiven === "1" ? "Yes" : "No",
+      isVehicleDriveable: damageRecord && damageRecord.isVehicleDriveable === "1" ? "Yes" : "No",
+      didTakePhotos: damageRecord ? damageRecord.didTakePhotos : null,
+      wereYouInjured: damageRecord ? damageRecord.wereYouInjured : null,
+      wereThereWitnesses: damageRecord && damageRecord.wereThereWitnesses === "1" ? "Yes" : "No",
+      witnesses: damageRecord ? damageRecord.witnesses || "" : "",
+      liability: damageRecord ? damageRecord.liability || "" : "",
+      vehiclesInvolved: damageRecord && damageRecord.vehiclesInvolved === "1" ? "Yes" : "No",
+      wereYouOnMobile: damageRecord && damageRecord.wereYouOnMobile === "Yes" ? "Yes" : "No",
+      driverStatement: driverRecord ? driverRecord.driverStatement : null,
+      signatureUrl: driverRecord ? driverRecord.signatureUrl : null,
     };
 
     res.status(200).json({
       statusCode: 200,
       success: true,
-
       data: formattedData,
     });
   } catch (error) {
-    console.log(error);
-    return res.status(201).send({
-      success: false,
-      msg: Msg.err,
-    });
+    console.error(error);
+    return res.status(500).json({ success: false, message: Msg.err });
   }
 };
 
@@ -408,12 +415,12 @@ exports.incidentReportsSortbyDate = async (req, res) => {
 
         return {
           id: application.id,
-          recordNo: bankRecord.recordNo,
-          location: conditionRecord.location,
+          recordNo: bankRecord ? bankRecord.recordNo: "" ,
+          location: conditionRecord ? conditionRecord.location : "",
           driverName: `${application.firstName} ${application.lastName}`,
-          clientName: bankRecord.clientName,
-          vehicleNumber: bankRecord.vehicleRegistrationNumber,
-          createdAt: application.createdAt, // Assuming createdAt is the submission date
+          clientName: bankRecord ? bankRecord.clientName: "",
+          vehicleNumber:bankRecord ? bankRecord.vehicleRegistrationNumber: "",
+          createdAt: application ? application.createdAt: "", // Assuming createdAt is the submission date
         };
       })
       .filter((report) => new Date(report.createdAt) > fifteenDaysAgo); // Filter reports submitted in the last 15 days
@@ -959,7 +966,7 @@ exports.licenseStatus = async (req, res) => {
 };
 
 // ADMIN FORGOT PASSWORD
-function generateOTP() {
+exports.generateOTP = async()=> {
   return Math.floor(100000 + Math.random() * 900000); // Generates a 6-digit OTP
 }
 

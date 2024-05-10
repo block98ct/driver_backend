@@ -172,17 +172,41 @@ exports.setStatusOfAdmins = async (req, res) => {
     // return res
     //     .status(200)
     //     .json({ success: true, message: Msg.ppeRequestUpdated });
+    const { adminId } = req.decoded;
+   const adminResp = await fetchAdminById(adminId);
     await checkSuperAdmin(req, res)
     const { status, id, roll } = req.body;
 
     if (roll == "user") {
       await setUSerStatus(status, id);
+      let logObj={
+        name: adminResp[0].name,
+        authority: adminResp[0].roll,
+        effectedData: `${status == 0? "Deactivated": "Activated"} user Account`,
+        timestamp: new Date(),
+        action: "updated"
+  
+      }
+      // adding logs
+      await addLogs(logObj)
+      
       return res
         .status(200)
         .json({ success: true, message: Msg.ppeRequestUpdated });
     }
-
+   
     await setAdminStatus(status, id);
+    let logObj={
+      name: adminResp[0].name,
+      authority: adminResp[0].roll,
+      effectedData: `${status == 0? "Deactivated": "Activated"} Admin Account`,
+      timestamp: new Date(),
+      action: "updated"
+
+    }
+    // adding logs
+    await addLogs(logObj)
+    
     return res
       .status(200)
       .json({ success: true, message: Msg.ppeRequestUpdated });
@@ -203,11 +227,12 @@ exports.allAdminsData = async(req, res)=>{
 
           // Map filtered admins to the desired format
           const formattedData = filteredAdmins.map(admin => ({
+              id: admin.id,
               name: admin.name,
               roll: admin.roll,
               email: admin.email,
               contactNo: admin.contactNo,
-              lastLogin: admin.lastLogin,
+              lastLogin: admin.lastLogin ? new Date(admin.lastLogin).toLocaleDateString() : null,
               status: admin.status
           }));
   
@@ -396,7 +421,7 @@ exports.allLogs= async(req,res)=>{
     const formattedData = await logsResponse.map((item, index)=>{
       return {
         id:item.id,
-        logiId:logId+index,
+        logiId:item.id+logId,
         name: item.name,
         authority: item.authority,
         effectedData: item.effectedData,
@@ -451,7 +476,7 @@ exports.logsByAuthority= async(req,res)=>{
             .replace('/', '-');
           return {
             id: item.id,
-            logId: logId + index,
+            logId: item.id+logId,
             name: item.name,
             authority: item.authority,
             effectedData: item.effectedData,
@@ -495,7 +520,7 @@ exports.logsByAction= async(req,res)=>{
         .replace('/', '-');
       return {
         id: item.id,
-        logId: logId + index,
+        logId: item.id+logId,
         name: item.name,
         authority: item.authority,
         effectedData: item.effectedData,
@@ -555,7 +580,7 @@ exports.searchLogs = async(req, res)=>{
       });
       return {
         id: item.id,
-        logId: logId + index,
+        logId: item.id+logId,
         name: item.name,
         authority: item.authority,
         effectedData: item.effectedData,

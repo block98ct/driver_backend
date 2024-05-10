@@ -129,7 +129,7 @@ module.exports = {
   },
 
   getLogsData: async () => {
-    return db.query(`select * from logs`);
+    return db.query(`SELECT * FROM logs ORDER BY id DESC`);
   },
   addLogs: async (logsData) => {
     return db.query("insert into logs set ?", [logsData]);

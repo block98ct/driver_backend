@@ -64,3 +64,9 @@ exports.generateRandomPassword = async (length) => {
     return result;
 }
 
+
+exports.generateOTP = async() =>{
+    return Math.floor(100000 + Math.random() * 900000); // Generates a 6-digit OTP
+  }
+  
+

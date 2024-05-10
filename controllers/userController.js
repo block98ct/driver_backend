@@ -45,6 +45,7 @@ const {
   updateBankDetailsById,
   updateAcknowledgeDetailsById,
   checkUserInAboutFormById,
+  fetchUserByIdInSubmitForm
 } = require("../models/user.model");
 
 const {addLogs } = require("../models/admin.modal")
@@ -76,8 +77,8 @@ exports.userRegister = async (req, res) => {
     const act_token = await generateRandomString(8);
     let checkUser = await fetchUserByEmail(email);
     if (checkUser.length !== 0) {
-      return res.status(400).send({
-        status: false,
+      return res.status(201).send({
+        success: false,
         msg: Msg.emailExists,
       });
     } else {
@@ -96,7 +97,6 @@ exports.userRegister = async (req, res) => {
         if (error) {
           return res.json({
             success: false,
-            status: 201,
             message: "Mail Not delivered",
           });
         } else {
@@ -111,12 +111,12 @@ exports.userRegister = async (req, res) => {
           let userCreated = await userRegister(obj); // Storing the new user
           if (userCreated) {
             return res.status(200).send({
-              status: true,
+              success: true,
               msg: `${Msg.verifyYourEmail}${email}`,
             });
           } else {
             return res.status(201).send({
-              status: false,
+              success: false,
               msg: Msg.signUpError,
             });
           }
@@ -125,7 +125,7 @@ exports.userRegister = async (req, res) => {
     }
   } catch (error) {
     return res.status(201).send({
-      status: false,
+      success: false,
       msg: Msg.err,
     });
   }
@@ -135,6 +135,7 @@ exports.userLogin = async (req, res) => {
   try {
     let { email, password } = req.body;
     let checkUser = await fetchUserByEmail(email);
+    let checkSubmit = await fetchUserByIdInSubmitForm(checkUser[0].id)
     if (checkUser[0]) {
       let Password = checkUser[0].password;
       let checkPassword = await bcrypt.compare(password, Password);
@@ -146,25 +147,26 @@ exports.userLogin = async (req, res) => {
           await setUserLoginStatus(loginTime, email);
 
           return res.status(200).send({
-            status: true,
+            success: true,
             msg: Msg.loginSuccesfully,
             token: token,
+            submitForm: checkSubmit.length > 0 ? true: false   
           });
         } else {
-          return res.status(400).send({
-            status: false,
+          return res.status(201).send({
+            success: false,
             msg: Msg.notVerifyAccount,
           });
         }
       } else {
-        return res.status(400).send({
-          status: false,
+        return res.status(201).send({
+          success: false,
           msg: Msg.inValidPassword,
         });
       }
     } else {
-      return res.status(400).send({
-        status: false,
+      return res.status(201).send({
+        success: false,
         msg: Msg.inValidEmail,
       });
     }
@@ -207,13 +209,13 @@ exports.forgetPasswordFn = async (req, res) => {
       });
     } else {
       return res.status(400).send({
-        status: false,
+        success: false,
         msg: Msg.inValidEmail,
       });
     }
   } catch (error) {
     return res.status(201).send({
-      status: false,
+      success: false,
       msg: Msg.err,
     });
   }
@@ -257,8 +259,8 @@ exports.verifyPasswordFn = async (req, res) => {
   try {
     const id = req.params.id;
     if (!id) {
-      return res.status(400).send({
-        status: false,
+      return res.status(201).send({
+        success: false,
         msg: Msg.invalidLink,
       });
     } else {
@@ -309,7 +311,7 @@ exports.changePassword = async (req, res) => {
       return res.json({
         message: Msg.userNotFound,
         success: false,
-        status: 400,
+        success: 400,
       });
     }
   } else {
@@ -1005,7 +1007,7 @@ exports.registerDriverApplicationForm = async (req, res) => {
     console.error("Error occurred:", error);
     res
       .status(201)
-      .json({ statusCode: 500, sucess: false, error: Msg.internalError });
+      .json({ sucess: false, error: Msg.internalError });
     
    }
   } else {
@@ -1030,7 +1032,7 @@ exports.registerDriverApplicationForm = async (req, res) => {
      await updateAcknowledgeDetailsById(acknowledgeForm, userId);
      console.log("acknowledgeForm updated successfully");
      res
-       .status(201)
+       .status(200)
        .json({ statusCode: 200, success: true, message: Msg.formUpdated });
    } catch (error) {
     console.error("Error occurred:", error);
@@ -1145,6 +1147,7 @@ let requestNo = 1100;
 exports.ppeRecordHandle = async (req, res) => {
   try {
     let { userId } = req.decoded;
+    const userResp = await fetchUserById(userId)
     const ppeRecordData = req.body;
     const ppeRecordInfo = {
       requestNo: requestNo,
@@ -1157,15 +1160,25 @@ exports.ppeRecordHandle = async (req, res) => {
 
 
     await ppeRecord(ppeRecordInfo);
+    let logObj={
+      name: userResp[0].name,
+      authority: userResp[0].roll,
+      effectedData: "submitted ppe request",
+      timestamp: new Date(),
+      action: "created"
+
+    }
+    // adding logs
+    await addLogs(logObj)
 
     requestNo++;
     res
-      .status(201)
+      .status(200)
       .json({ statusCode: 200, success: true, message: Msg.ppeRecord });
   } catch (error) {
     console.error("Error occurred:", error);
     res
-      .status(501)
+      .status(201)
       .json({ statusCode: 500, sucess: false, error: Msg.internalError });
   }
 };
@@ -1233,7 +1246,7 @@ exports.getDriverIncidentReportHandle = async (req, res) => {
   } catch (error) {
     console.error("Error occurred:", error);
     res
-      .status(501)
+      .status(201)
       .json({ statusCode: 500, sucess: false, error: Msg.internalError });
   }
 };
@@ -1300,7 +1313,7 @@ exports.getDriverIncidentReportsHandle = async (req, res) => {
   } catch (error) {
     console.error("Error occurred:", error);
     res
-      .status(501)
+      .status(201)
       .json({ statusCode: 500, sucess: false, error: Msg.internalError });
   }
 };
@@ -1324,7 +1337,7 @@ exports.getPpeRecordsHandle = async (req, res) => {
       };
     });
 
-    res.status(201).json({
+    res.status(200).json({
       statusCode: 200,
       success: true,
       message: Msg.ppeRecords,
@@ -1333,75 +1346,65 @@ exports.getPpeRecordsHandle = async (req, res) => {
   } catch (error) {
     console.error("Error occurred:", error);
     res
-      .status(501)
+      .status(201)
       .json({ statusCode: 500, sucess: false, error: Msg.internalError });
   }
 };
 
 exports.getPpeRecordHandle = async (req, res) => {
   try {
-    const { id } = req.query;
-    let { userId } = req.decoded;
+      const { id } = req.query;
+      let { userId } = req.decoded;
 
-    const resp = await getPpeRecord(userId);
-    const record = resp.find((item) => item?.id === parseInt(id));
+      const resp = await getPpeRecord(userId);
+      const record = resp.find((item) => item?.id === parseInt(id));
 
-    console.log(userId);
+      if (record) {
+          // Initialize an array to store the formatted PPE details
+          let ppeDetails = [];
 
-    if (record) {
-      // Initialize an array to store the formatted PPE details
-      let ppeDetails = [];
+          // Iterate through each property of the record
+          Object.keys(record).forEach((key) => {
+              if (
+                  key !== "id" &&
+                  key !== "userId" &&
+                  key !== "submissionDate" &&
+                  key !== "requestNo" &&
+                  key.toLowerCase() !== "status" &&
+                  record[key] !== undefined &&
+                  record[key] !== null &&
+                  record[key] !== "" &&
+                  key.toLowerCase() !== "createdat" && // Exclude "CreatedAt" property
+                  key.toLowerCase() !== "approvedat" // Exclude "ApprovedAt" property
+              ) {
+                  // Format the property name
+                  const formattedName = key.replace(/([A-Z])/g, " $1").trim();
+                  const capitalizedFormattedName =
+                      formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
 
-      // Iterate through each property of the record
-      Object.keys(record).forEach((key) => {
-        if (
-          key !== "id" &&
-          key !== "userId" &&
-          key !== "submissionDate" &&
-          key !== "requestNo" &&
-          key.toLowerCase() !== "status"
-        ) {
-          // Check if the value exists and is not undefined, null, or an empty string
-          if (
-            record[key] !== undefined &&
-            record[key] !== null &&
-            record[key] !== ""
-          ) {
-            // Format the property name
-            const formattedName = key.replace(/([A-Z])/g, " $1").trim();
-            const capitalizedFormattedName =
-              formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+                  // Push the formatted PPE detail object to the ppeDetails array
+                  ppeDetails.push({
+                      name: capitalizedFormattedName,
+                      ...record[key],
+                  });
+              }
+          });
 
-            // Push the formatted PPE detail object to the ppeDetails array
-            ppeDetails.push({
-              name: capitalizedFormattedName,
-              ...record[key],
-            });
-          }
-        }
+          // Update the record data to include the ppeDetails array
+          record["ppeDetails"] = ppeDetails;
+      }
+
+      res.status(200).json({
+          statusCode: 200,
+          success: true,
+          message: Msg.ppeRequest,
+          data: record,
       });
-
-      // Update the record data to include the ppeDetails array
-      record["ppeDetails"] = ppeDetails;
-
-      delete record["hiVisVest"];
-      delete record["poloShirt"];
-      delete record["trousers"];
-      delete record["hardHat"];
-
-      //pending work
-    }
-
-    res.status(201).json({
-      statusCode: 200,
-      success: true,
-      message: Msg.ppeRequest,
-      data: record,
-    });
   } catch (error) {
-    console.error("Error occurred:", error);
-    res
-      .status(501)
-      .json({ statusCode: 500, sucess: false, error: Msg.internalError });
+      console.error("Error occurred:", error);
+      res
+          .status(500)
+          .json({ statusCode: 500, success: false, error: Msg.internalError });
   }
 };
+
