@@ -135,6 +135,14 @@ exports.userLogin = async (req, res) => {
   try {
     let { email, password } = req.body;
     let checkUser = await fetchUserByEmail(email);
+    if(checkUser.length <=0){
+      return res.status(201).send({
+        success: false,
+        msg: Msg.inValidEmail,
+       
+      });
+
+    }
     let checkSubmit = await fetchUserByIdInSubmitForm(checkUser[0].id)
     if (checkUser[0]) {
       let Password = checkUser[0].password;
@@ -171,8 +179,9 @@ exports.userLogin = async (req, res) => {
       });
     }
   } catch (error) {
+    console.log(error)
     return res.status(201).send({
-      status: false,
+      success: false,
       msg: Msg.err,
     });
   }
