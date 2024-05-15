@@ -25,24 +25,84 @@ const checkSuperAdmin = async(req, res)=>{
 
 } 
 exports.resgisterAdmins = async (req, res) => {
-  try {
+  // try {
     
-    await checkSuperAdmin(req, res)
-    const { name, email, password, confirmPassword, contactNo } = req.body;
+  //   await checkSuperAdmin(req, res)
+  //   const { name, email, password, confirmPassword, contactNo } = req.body;
+  //   const { adminId } = req.decoded;
+  //   const adminResp = await fetchAdminById(adminId);
+
+
+  //   const checkEmail = await fetchAdminByEmail(email);
+
+
+
+  //   if ((!name || !email || !password || !confirmPassword, !contactNo)) {
+  //     return res
+  //       .status(201)
+  //       .json({ success: false, message: Msg.invalidCread });
+  //   }
+
+  //   if (checkEmail.length > 0) {
+  //     return res.status(201).send({
+  //       success: false,
+  //       msg: Msg.emailExists
+  //     });
+  //   }
+
+  //   if (password !== confirmPassword) {
+  //     return res.status(201).json({ success: false, message: Msg.pwdNotMatch });
+  //   }
+
+  //   const Password = await hashPassword(password);
+
+  //   const adminObj = {
+  //     name,
+  //     email,
+  //     password: Password,
+  //     contactNo
+  //   };
+  //   await adminRegister(adminObj);
+    
+  //   let logObj={
+  //     name: adminResp[0].name,
+  //     authority: adminResp[0].roll,
+  //     effectedData: "resgister new admin",
+  //     timestamp: new Date(),
+  //     action: "created"
+
+  //   }
+  //   // adding logs
+  //   await addLogs(logObj)
+ 
+
+  //   return res.status(200).json({ success: true, message: Msg.adminRegister });
+  // } catch (error) {
+  //   console.log(error);
+  //   return res.status(201).send({
+  //     success: false,
+  //     msg: error
+  //   });
+  // }
+
+
+
+  try {
     const { adminId } = req.decoded;
     const adminResp = await fetchAdminById(adminId);
-
+    await checkSuperAdmin(req, res)
+    const { name, email,  contactNo } = req.body;
+    
 
     const checkEmail = await fetchAdminByEmail(email);
+    const password = await generateRandomPassword(8)
 
-
-
-    if ((!name || !email || !password || !confirmPassword, !contactNo)) {
+    if ((!name || !email || !contactNo)) {
       return res
         .status(201)
         .json({ success: false, message: Msg.invalidCread });
     }
-
+    
     if (checkEmail.length > 0) {
       return res.status(201).send({
         success: false,
@@ -50,9 +110,6 @@ exports.resgisterAdmins = async (req, res) => {
       });
     }
 
-    if (password !== confirmPassword) {
-      return res.status(201).json({ success: false, message: Msg.pwdNotMatch });
-    }
 
     const Password = await hashPassword(password);
 
@@ -60,10 +117,13 @@ exports.resgisterAdmins = async (req, res) => {
       name,
       email,
       password: Password,
-      contactNo
+      contactNumber: contactNo,
+      
     };
+
+    await mail(email, password)
     await adminRegister(adminObj);
-    
+
     let logObj={
       name: adminResp[0].name,
       authority: adminResp[0].roll,
@@ -74,16 +134,24 @@ exports.resgisterAdmins = async (req, res) => {
     }
     // adding logs
     await addLogs(logObj)
- 
-
+    
     return res.status(200).json({ success: true, message: Msg.adminRegister });
+
+    
   } catch (error) {
     console.log(error);
     return res.status(201).send({
       success: false,
       msg: error
     });
+    
+
+    
   }
+
+
+
+
 };
 
 

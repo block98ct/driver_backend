@@ -11,8 +11,22 @@ module.exports = {
     return db.query(`select * from user_register where email = '${email}'`);
   },
 
+  updateNumberById: async(id, contactNumber)=>{
+    return db.query(`Update user_register set contactNumber = ? where id = ?`, [id,
+      contactNumber
+    ]);
+  
+  },
+
+  updateNameById: async(id, name)=>{
+    return db.query(`Update user_register set name = ? where id = ?`, [id,
+      name
+    ]);
+
+  },
+
   fetchUserById: async (id) => {
-    return db.query(`select * from user_register where id = '${id}'`);
+    return db.query(`select * from user_register where id = '${id}'`);  
   },
   fetchUserByActToken: async (act_token) => {
     return db.query("select * from user_register where actToken = ?", [
@@ -32,7 +46,7 @@ module.exports = {
   },
 
   fetchUserByIdInSubmitForm: async (id) => {
-    return db.query(`select * from acknowledge_details where id = '${id}'`);
+    return db.query(`select * from acknowledge_details where userId = '${id}'`);
   },
 
   setUSerStatus: async (status, id) => {

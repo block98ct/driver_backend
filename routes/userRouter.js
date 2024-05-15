@@ -10,6 +10,9 @@ app.post('/userLogin', userLogin, handleValidationErrors, controller.userControl
 app.post('/forgetPasswordFn', controller.userController.forgetPasswordFn)
 app.get('/verifyUser/:id', controller.userController.verifyUser)
 app.get('/verifyPassword/:id', controller.userController.verifyPasswordFn)
+
+app.post('/editProfile', authenticateToken, controller.userController.editProfile)
+
 app.post("/changePassword", passwordVallidate, handleValidationErrors, controller.userController.changePassword);
 app.post('/driverApplicationForm', authenticateToken, controller.userController.registerDriverApplicationForm)
 app.post("/driverReport", authenticateToken, controller.userController.driverIncidentReportHandle)

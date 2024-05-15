@@ -45,7 +45,9 @@ const {
   updateBankDetailsById,
   updateAcknowledgeDetailsById,
   checkUserInAboutFormById,
-  fetchUserByIdInSubmitForm
+  fetchUserByIdInSubmitForm,
+  updateNumberById,
+  updateNameById
 } = require("../models/user.model");
 
 const {addLogs } = require("../models/admin.modal")
@@ -293,6 +295,73 @@ exports.verifyPasswordFn = async (req, res) => {
               </div> `);
   }
 };
+
+exports.editProfile = async(req, res)=>{
+  try {
+    const { userId}= req.decoded;
+    const { name, contactNumber} = req.body;
+    if (!name && !contactNumber) {
+      return res.status(201).json({ success: false, msg: Msg.atleastRequired });
+    }
+  
+
+    const checkUser = await fetchUserById(userId)
+    if(checkUser.length <=0){
+      return res.status(201).send({
+        success: false,
+        msg: Msg.invalidUser,
+       
+      });
+
+    }
+
+    if (!checkUser[0].isVerified) {
+      return res.status(201).send({
+        success: false,
+        msg: Msg.notVerifyAccount,
+       
+      });
+      
+    }
+
+    if (contactNumber) {
+      try {
+        
+        await updateNumberById(contactNumber, userId)
+      } catch (error) {
+        console.log(error)
+        
+      }
+      
+    }
+
+
+    if (name) {
+      try {
+        await updateNameById(name, userId)
+        
+      } catch (error) {
+        console.log(error)
+        
+      }
+      
+    }
+
+    res
+    .status(201)
+    .json({ sucess: true, error: Msg.profileUpdated });
+  
+
+
+    
+  } catch (error) {
+    console.error("Error occurred:", error);
+    res
+      .status(201)
+      .json({ sucess: false, error: Msg.internalError });
+    
+  }
+}
 //**-------function to use change password---------- */
 exports.changePassword = async (req, res) => {
   let { password, confirm_password } = req.body;
@@ -329,181 +398,6 @@ exports.changePassword = async (req, res) => {
     });
   }
 };
-//**-------function to use register driver application form---------- */
-// exports.registerDriverApplicationForm = async (req, res) => {
-//   try {
-//     let { userId } = req.decoded;
-
-//     const aboutYouData = req.body.find(
-//       (form) => form.formName === "About You"
-//     ).formData;
-//     const backgroundInfoData = req.body.find(
-//       (form) => form.formName === "Background Information"
-//     ).formData;
-//     const vehicleExperienceData = req.body.find(
-//       (form) => form.formName === "Vehicle Experience"
-//     ).formData;
-//     const personalDetailData = req.body.find(
-//       (form) => form.formName === "Personal Detail"
-//     ).formData;
-//     const bankDetailData = req.body.find(
-//       (form) => form.formName === "Bank Detail"
-//     ).formData;
-//     const acknoledgeData = req.body.find(
-//       (form) => form.formName === "Acknowledge Detail"
-//     ).formData;
-
-//     //   console.log("aboutYourData", aboutYouData.firstName);
-//     //   console.log("backgroundInfoData", backgroundInfoData);
-//     //   console.log("vehicleExperienceData", vehicleExperienceData);
-//     //   console.log("personalDetailData", personalDetailData);
-//     //   console.log("bankDetailData", bankDetailData);
-//     //   console.log("acknoledgeData", acknoledgeData);
-
-//     //   console.log("backgroundInfoData", backgroundInfoData);
-//     //   console.log("vehicleExperienceData", vehicleExperienceData);
-//     try {
-//       const aboutYouObj = {
-//         firstName: aboutYouData.firstName,
-//         lastName: aboutYouData.lastName,
-//         addressline1: aboutYouData.addressline1,
-//         addressline2: aboutYouData.addressline2,
-//         country: aboutYouData.country,
-//         townCity: aboutYouData.townCity,
-//         postcode: aboutYouData.postcode,
-//         mobileNumber: aboutYouData.mobileNumber,
-//         nationalInsuranceNumber: aboutYouData.nationalInsuranceNumber,
-//         email: aboutYouData.email,
-//         nextofKinfirstname: aboutYouData.nextofKinfirstname,
-//         nextofKinlastname: aboutYouData.nextofKinlastname,
-//         userId: userId,
-//         nextofKinMobileNumber: aboutYouData.nextofKinMobileNumber,
-//       };
-//       await aboutYouForm(aboutYouObj);
-//       // console.log(aboutYouForms)
-
-//       console.log("about form submitted successfully");
-
-//       const backgroundInfo = {
-//         hasCriminalConvictions:
-//           backgroundInfoData.hasCriminalConvictions === "Yes",
-//         convictionDetails:
-//           backgroundInfoData.hasCriminalConvictions === "Yes"
-//             ? JSON.stringify(backgroundInfoData.convictionDetails)
-//             : null,
-//         drugAlcoholTest: backgroundInfoData.drugAlcoholTest === "Yes",
-//         participateInRandomSearches:
-//           backgroundInfoData.participateInRandomSearches === "Yes",
-//         preferNotPlaced: backgroundInfoData.preferNotPlaced === "Yes",
-//         companyDetails:
-//           backgroundInfoData.preferNotPlaced === "Yes"
-//             ? JSON.stringify(backgroundInfoData.companyDetails)
-//             : null,
-//         hasAccidentsLast12Months:
-//           backgroundInfoData.hasAccidentsLast12Months === "Yes",
-//         accidentDetails:
-//           backgroundInfoData.hasAccidentsLast12Months === "Yes"
-//             ? JSON.stringify(backgroundInfoData.accidentDetails)
-//             : null,
-//         userId: userId,
-//       };
-
-//       await backgroundInformation(backgroundInfo);
-//       console.log("backgroundInfo submitted successfully");
-//     } catch (error) {
-//       console.log(error);
-//       res.status(501).json({ statusCode: 500, sucess: false, error: error });
-//     }
-
-//     try {
-//       const vehicleExperienceForm = {
-//         vehicleExperience: JSON.stringify(
-//           vehicleExperienceData.vehicleExperience
-//         ),
-//         vehicleSkills: JSON.stringify(vehicleExperienceData.vehicleSkills),
-//         licenseNumber: vehicleExperienceData.licenseNumber,
-//         licenseExpiryDate: vehicleExperienceData.licenseExpiryDate,
-//         digiTachoNumber: parseInt(vehicleExperienceData.digiTachoNumber),
-//         digiTachoExpiryDate: vehicleExperienceData.digiTachoExpiryDate,
-//         CPC_CardExpiryDate: vehicleExperienceData.CPC_CardExpiryDate,
-//         modulesRequired: vehicleExperienceData.modulesRequired === "Yes",
-//         modeDetails:
-//           vehicleExperienceData.modulesRequired === "Yes"
-//             ? JSON.stringify(vehicleExperienceData.modeDetails)
-//             : null,
-//         penaltyPoints: parseInt(vehicleExperienceData.panaltyPoints),
-//         hasPenaltyPending: vehicleExperienceData.hasPanaltyPending === "Yes",
-//         userId: userId,
-//       };
-
-//       await vehicleExperience(vehicleExperienceForm);
-
-//       console.log("vehicleExperienceForm submitted successfully");
-//     } catch (error) {
-//       console.log(error);
-//       res.status(501).json({ statusCode: 500, sucess: false, error: error });
-//     }
-
-//     try {
-//       const personalDetailForm = {
-//         hasYouSmoke: personalDetailData.hasYouSmoke === "Yes",
-//         smokingOptions:
-//           personalDetailData.hasYouSmoke === "Yes"
-//             ? JSON.stringify(personalDetailData.smokingOptions)
-//             : null,
-//         hasAnyPrescribedMedication:
-//           personalDetailData.hasAnyPrescribedMedication === "Yes",
-//         medicationDetails:
-//           personalDetailData.hasAnyPrescribedMedication === "Yes"
-//             ? JSON.stringify(personalDetailData.medicationDetails)
-//             : null,
-//       };
-//       await personalDetails(personalDetailForm);
-//       console.log("personalDetailForm submitted successfully");
-//     } catch (error) {
-//       console.log(error);
-//       res.status(501).json({ statusCode: 500, sucess: false, error: error });
-//     }
-
-//     try {
-//       const bankDetailForm = {
-//         bankOrBuildingSocietyName: bankDetailData.bankOrBuildingSocietyName,
-//         nameOnAccount: bankDetailData.nameOnAccount,
-//         sortCode: bankDetailData.sortCode,
-//         accountNumber: bankDetailData.accountNumber,
-//         employmentHistoryDetails: JSON.stringify(
-//           bankDetailData.employmentHistoryDetails
-//         ),
-//         userId: userId,
-//       };
-
-//       await bankDetails(bankDetailForm);
-//       console.log("bankDetailForm submitted successfully");
-//     } catch (error) {
-//       console.log(error);
-//       res.status(501).json({ statusCode: 500, sucess: false, error: error });
-//     }
-
-//     const acknowledgeForm = {
-//       firstName: acknoledgeData.firstName,
-//       lastName: acknoledgeData.lastName,
-//       signatureUrl: acknoledgeData.signatureUrl,
-//       userId: userId,
-//     };
-
-//     await acknowledgeDetails(acknowledgeForm);
-//     console.log("acknowledgeForm submitted successfully");
-//     res
-//       .status(201)
-//       .json({ statusCode: 200, success: true, message: Msg.formSubmitted });
-//   } catch (error) {
-//     console.error("Error occurred:", error);
-//     res
-//       .status(501)
-//       .json({ statusCode: 500, sucess: false, error: Msg.internalError });
-//   }
-
-// };
 
 const checkUserId = async (userId) => {
   try {
@@ -1356,7 +1250,7 @@ exports.getPpeRecordsHandle = async (req, res) => {
     console.error("Error occurred:", error);
     res
       .status(201)
-      .json({ statusCode: 500, sucess: false, error: Msg.internalError });
+      .json({ sucess: false, error: Msg.internalError });
   }
 };
 
@@ -1412,8 +1306,8 @@ exports.getPpeRecordHandle = async (req, res) => {
   } catch (error) {
       console.error("Error occurred:", error);
       res
-          .status(500)
-          .json({ statusCode: 500, success: false, error: Msg.internalError });
+          .status(201)
+          .json({ statusCode: 201, success: false, error: Msg.internalError });
   }
 };
 
