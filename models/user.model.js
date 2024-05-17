@@ -34,7 +34,7 @@ module.exports = {
     ]);
   },
   updateUserByActToken: async (id) => {
-    return db.query(`Update user_register set isVerified = 1 where id = ?`, [
+    return db.query(`Update user_register set isVerified = 1 where id = ?`, [  
       id,
     ]);
   },
@@ -191,6 +191,10 @@ module.exports = {
     return db.query("insert into ppe_request set ?", [infoData]);
   },
 
+  incidentReportImages: async (data) => {
+    return db.query("insert into incidentReportImages set ?", [data]);
+  },
+
   // DRIVER APPLICATION FORM BY USERID
   getAboutYouForm: async (userId) => {
     return db.query(`SELECT * FROM about_you_form WHERE userId = ?`, [userId]);
@@ -271,6 +275,24 @@ module.exports = {
     );
   },
 
+
+  getAllDamageProperty: async () => {
+    return db.query(
+      `SELECT * FROM damage_to_vehicle_property `
+    );
+  },
+
+
+  getIncidentReportImagesByUserId: async (id) => {
+    return db.query(
+      `SELECT * FROM incidentReportImages WHERE reportId = ?`,
+      [id]
+    );
+  },
+
+
+  
+  
   getDriverStatement: async (userId) => {
     return db.query(`SELECT * FROM driver_statement WHERE userId = ?`, [
       userId,
@@ -280,4 +302,6 @@ module.exports = {
   getPpeRecord: async (userId) => {
     return db.query(`SELECT * FROM ppe_request WHERE userId = ?`, [userId]);
   },
+
+
 };

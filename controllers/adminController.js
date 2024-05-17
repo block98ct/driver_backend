@@ -30,7 +30,8 @@ const {
   updateAdminOTPByEmail,
   updateAdminPasswordByEmail,
   updateAdminOtpToNullByEmail,
-  addLogs
+  addLogs,
+  getIncidentReportImagesByUserId
 } = require("../models/admin.modal");
 
 const {
@@ -41,6 +42,9 @@ const {
   getAllBankDetails,
   getAllAcknowledgeDetails,
 } = require("../models/user.model");
+
+const baseurl = require("../config").base_url;
+
 
 const checkIsAdmin = async (req) => {
   const { adminId } = req.decoded;
@@ -83,7 +87,6 @@ exports.adminLogin = async (req, res) => {
     let Password = await checkEmail[0].password;
 
     let checkPassword = await bcrypt.compare(password, Password);
-
     if (!checkPassword) {
       return res.status(201).send({
         status: false,
@@ -100,7 +103,8 @@ exports.adminLogin = async (req, res) => {
       status: true,
       msg: Msg.loginSuccesfully,
       token: token,
-      roll: checkEmail[0].roll
+      roll: checkEmail[0].roll,
+      name: checkEmail[0].name
     });
   } catch (error) {
     console.log(error);
@@ -328,7 +332,8 @@ exports.incidentReportOnlyOne = async (req, res) => {
   try {
     const { id } = req.query;
     await checkIsAdmin(req);
-
+    const imgResp = await getIncidentReportImagesByUserId(id)
+    const images = imgResp.map(record => record.images);
 
    // `${application.firstName || ""} ${application.lastName || ""}`
     const [
@@ -371,6 +376,7 @@ exports.incidentReportOnlyOne = async (req, res) => {
       statementGiven: policeRecord && policeRecord.statementGiven === "1" ? "Yes" : "No",
       isVehicleDriveable: damageRecord && damageRecord.isVehicleDriveable === "1" ? "Yes" : "No",
       didTakePhotos: damageRecord ? damageRecord.didTakePhotos : null,
+      photos: damageRecord?.didTakePhotos === "Yes" ? images.map((img)=>`${baseurl}/temp/${img}`) : null,
       wereYouInjured: damageRecord ? damageRecord.wereYouInjured : null,
       wereThereWitnesses: damageRecord && damageRecord.wereThereWitnesses === "1" ? "Yes" : "No",
       witnesses: damageRecord ? damageRecord.witnesses || "" : "",
@@ -771,10 +777,23 @@ exports.latestApplications = async (req, res) => {
 // SET DRIVING APPLICATION STATUS
 exports.setDrivingApplicationStatus = async (req, res) => {
   try {
+    const { adminId } = req.decoded;
+    const userResp = await fetchAdminById(adminId)
     const { id, status } = req.query;
     await checkIsAdmin(req);
 
     await setDrivingStatus(status, id);
+
+    let logObj={
+      name: userResp[0].name,
+      authority: userResp[0].roll,
+      effectedData: `${status == 2? "Approved": "Rejected"} driving application `,
+      timestamp: new Date(),
+      action: "updated"
+
+    }
+    await addLogs(logObj)
+
     return res
       .status(200)
       .json({ success: true, message: Msg.ppeRequestUpdated });
@@ -932,7 +951,6 @@ exports.licenseStatus = async (req, res) => {
     await checkIsAdmin(req);
     const resp = await getAllDriverApplication();
     const resp1 = await getVehicleExperienceDetail();
-    console.log("resp----->", resp);
 
     const mergedData = resp.map((application) => {
       const licenseInfo = resp1.find(
@@ -966,16 +984,23 @@ exports.licenseStatus = async (req, res) => {
 };
 
 // ADMIN FORGOT PASSWORD
-exports.generateOTP = async()=> {
+async function generateOTP () {
   return Math.floor(100000 + Math.random() * 900000); // Generates a 6-digit OTP
 }
 
 // Controller to handle forgot password request
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
+  const admin = await fetchAdminByEmail(email);
+
+  if (admin.length <= 0) {
+    return res
+      .status(201)
+      .json({ success: false, message: Msg.adminNotFound });
+  }
 
   try {
-    const otp = generateOTP();
+    const otp = await generateOTP();
 
     await mail(email, otp);
 
@@ -997,11 +1022,12 @@ exports.verifyOTP = async (req, res) => {
   try {
     const admin = await fetchAdminByEmail(email);
 
-    if (!admin) {
+    if (admin.length <= 0) {
       return res
         .status(201)
         .json({ success: false, message: Msg.adminNotFound });
     }
+  
     if (admin[0].otp !== otp) {
       return res.status(201).json({ success: false, message: Msg.invalidOtp });
     }
@@ -1019,6 +1045,7 @@ exports.verifyOTP = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const { password, confirmPassword, email } = req.body;
+    const userResp = await fetchAdminByEmail(email)
     if (!password && !confirmPassword) {
       return res
         .status(201)
@@ -1034,6 +1061,15 @@ exports.resetPassword = async (req, res) => {
       password: hashPass,
     };
     await updateAdminPasswordByEmail(obj);
+    let logObj={
+      name: userResp[0].name,
+      authority: userResp[0].roll,
+      effectedData: "reset password",
+      timestamp: new Date(),
+      action: "updated"
+
+    }
+    await addLogs(logObj)
     return res
       .status(200)
       .json({ success: true, message: Msg.passwordUpdated });

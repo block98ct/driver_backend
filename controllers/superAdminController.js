@@ -25,67 +25,7 @@ const checkSuperAdmin = async(req, res)=>{
 
 } 
 exports.resgisterAdmins = async (req, res) => {
-  // try {
-    
-  //   await checkSuperAdmin(req, res)
-  //   const { name, email, password, confirmPassword, contactNo } = req.body;
-  //   const { adminId } = req.decoded;
-  //   const adminResp = await fetchAdminById(adminId);
-
-
-  //   const checkEmail = await fetchAdminByEmail(email);
-
-
-
-  //   if ((!name || !email || !password || !confirmPassword, !contactNo)) {
-  //     return res
-  //       .status(201)
-  //       .json({ success: false, message: Msg.invalidCread });
-  //   }
-
-  //   if (checkEmail.length > 0) {
-  //     return res.status(201).send({
-  //       success: false,
-  //       msg: Msg.emailExists
-  //     });
-  //   }
-
-  //   if (password !== confirmPassword) {
-  //     return res.status(201).json({ success: false, message: Msg.pwdNotMatch });
-  //   }
-
-  //   const Password = await hashPassword(password);
-
-  //   const adminObj = {
-  //     name,
-  //     email,
-  //     password: Password,
-  //     contactNo
-  //   };
-  //   await adminRegister(adminObj);
-    
-  //   let logObj={
-  //     name: adminResp[0].name,
-  //     authority: adminResp[0].roll,
-  //     effectedData: "resgister new admin",
-  //     timestamp: new Date(),
-  //     action: "created"
-
-  //   }
-  //   // adding logs
-  //   await addLogs(logObj)
  
-
-  //   return res.status(200).json({ success: true, message: Msg.adminRegister });
-  // } catch (error) {
-  //   console.log(error);
-  //   return res.status(201).send({
-  //     success: false,
-  //     msg: error
-  //   });
-  // }
-
-
 
   try {
     const { adminId } = req.decoded;
@@ -117,7 +57,7 @@ exports.resgisterAdmins = async (req, res) => {
       name,
       email,
       password: Password,
-      contactNumber: contactNo,
+      contactNo,
       
     };
 
@@ -481,7 +421,7 @@ exports.searchAdminByData = async(req, res)=>{
 
 
 
-let logId = 1300;
+let logiId = 1300;
 exports.allLogs= async(req,res)=>{
   try {
     await checkSuperAdmin(req, res)
@@ -489,7 +429,7 @@ exports.allLogs= async(req,res)=>{
     const formattedData = await logsResponse.map((item, index)=>{
       return {
         id:item.id,
-        logiId:item.id+logId,
+        logiId:item.id+logiId,
         name: item.name,
         authority: item.authority,
         effectedData: item.effectedData,
@@ -544,7 +484,7 @@ exports.logsByAuthority= async(req,res)=>{
             .replace('/', '-');
           return {
             id: item.id,
-            logId: item.id+logId,
+            logiId: item.id+logiId,
             name: item.name,
             authority: item.authority,
             effectedData: item.effectedData,
@@ -588,7 +528,7 @@ exports.logsByAction= async(req,res)=>{
         .replace('/', '-');
       return {
         id: item.id,
-        logId: item.id+logId,
+        logiId: item.id+logiId,
         name: item.name,
         authority: item.authority,
         effectedData: item.effectedData,
@@ -648,7 +588,7 @@ exports.searchLogs = async(req, res)=>{
       });
       return {
         id: item.id,
-        logId: item.id+logId,
+        logiId: item.id+logiId,
         name: item.name,
         authority: item.authority,
         effectedData: item.effectedData,

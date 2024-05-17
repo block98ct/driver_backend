@@ -7,6 +7,7 @@ const hbs = require("nodemailer-express-handlebars");
 const secretKey = process.env.JWT_SECRET_KEY;
 const localStorage = require("localStorage");
 const Msg = require("../helpers/message");
+
 const path = require("path");
 
 const baseurl = require("../config").base_url;
@@ -47,10 +48,13 @@ const {
   checkUserInAboutFormById,
   fetchUserByIdInSubmitForm,
   updateNumberById,
-  updateNameById
+  updateNameById,
+  incidentReportImages,
+  getAllDamageProperty,
+  getIncidentReportImagesByUserId,
 } = require("../models/user.model");
 
-const {addLogs } = require("../models/admin.modal")
+const { addLogs } = require("../models/admin.modal");
 
 var transporter = nodemailer.createTransport({
   // service: 'gmail',
@@ -112,6 +116,14 @@ exports.userRegister = async (req, res) => {
           };
           let userCreated = await userRegister(obj); // Storing the new user
           if (userCreated) {
+            // let logObj = {
+            //   name: checkUser[0].name,
+            //   authority: checkUser[0].roll,
+            //   effectedData: `change mobile number`,
+            //   timestamp: new Date(),
+            //   action: "updated",
+            // };
+            // await addLogs(logObj);
             return res.status(200).send({
               success: true,
               msg: `${Msg.verifyYourEmail}${email}`,
@@ -137,15 +149,21 @@ exports.userLogin = async (req, res) => {
   try {
     let { email, password } = req.body;
     let checkUser = await fetchUserByEmail(email);
-    if(checkUser.length <=0){
+    if (checkUser.length <= 0) {
       return res.status(201).send({
         success: false,
         msg: Msg.inValidEmail,
-       
       });
-
     }
-    let checkSubmit = await fetchUserByIdInSubmitForm(checkUser[0].id)
+
+    if (checkUser[0].status == 0) {
+      return res.status(201).send({
+        status: false,
+        msg: Msg.accountDeactiveated,
+      });
+    }
+
+    let checkSubmit = await fetchUserByIdInSubmitForm(checkUser[0].id);
     if (checkUser[0]) {
       let Password = checkUser[0].password;
       let checkPassword = await bcrypt.compare(password, Password);
@@ -160,7 +178,7 @@ exports.userLogin = async (req, res) => {
             success: true,
             msg: Msg.loginSuccesfully,
             token: token,
-            submitForm: checkSubmit.length > 0 ? true: false   
+            submitForm: checkSubmit.length > 0 ? true : false,
           });
         } else {
           return res.status(201).send({
@@ -181,7 +199,7 @@ exports.userLogin = async (req, res) => {
       });
     }
   } catch (error) {
-    console.log(error)
+    console.log(error);
     return res.status(201).send({
       success: false,
       msg: Msg.err,
@@ -296,72 +314,69 @@ exports.verifyPasswordFn = async (req, res) => {
   }
 };
 
-exports.editProfile = async(req, res)=>{
+exports.editProfile = async (req, res) => {
   try {
-    const { userId}= req.decoded;
-    const { name, contactNumber} = req.body;
+    const { userId } = req.decoded;
+    const { name, contactNumber } = req.body;
     if (!name && !contactNumber) {
       return res.status(201).json({ success: false, msg: Msg.atleastRequired });
     }
-  
 
-    const checkUser = await fetchUserById(userId)
-    if(checkUser.length <=0){
+    const checkUser = await fetchUserById(userId);
+    if (checkUser.length <= 0) {
       return res.status(201).send({
         success: false,
         msg: Msg.invalidUser,
-       
       });
-
     }
 
     if (!checkUser[0].isVerified) {
       return res.status(201).send({
         success: false,
         msg: Msg.notVerifyAccount,
-       
       });
-      
     }
 
     if (contactNumber) {
       try {
-        
-        await updateNumberById(contactNumber, userId)
-      } catch (error) {
-        console.log(error)
-        
-      }
-      
-    }
+        await updateNumberById(contactNumber, userId);
 
+        let logObj = {
+          name: checkUser[0].name,
+          authority: checkUser[0].roll,
+          effectedData: `changed contact number`,
+          timestamp: new Date(),
+          action: "updated",
+        };
+        await addLogs(logObj);
+      } catch (error) {
+        console.log(error);
+      }
+    }
 
     if (name) {
       try {
-        await updateNameById(name, userId)
-        
+        await updateNameById(name, userId);
+
+        let logObj = {
+          name: checkUser[0].name,
+          authority: checkUser[0].roll,
+          effectedData: `changed name`,
+          timestamp: new Date(),
+          action: "updated",
+        };
+        await addLogs(logObj);
       } catch (error) {
-        console.log(error)
-        
+        console.log(error);
       }
-      
     }
 
-    res
-    .status(201)
-    .json({ sucess: true, error: Msg.profileUpdated });
-  
-
-
-    
+    res.status(201).json({ sucess: true, error: Msg.profileUpdated });
   } catch (error) {
     console.error("Error occurred:", error);
-    res
-      .status(201)
-      .json({ sucess: false, error: Msg.internalError });
-    
+    res.status(201).json({ sucess: false, error: Msg.internalError });
   }
-}
+};
 //**-------function to use change password---------- */
 exports.changePassword = async (req, res) => {
   let { password, confirm_password } = req.body;
@@ -413,7 +428,7 @@ exports.registerDriverApplicationForm = async (req, res) => {
   let { userId } = req.decoded;
   const userIdExists = await checkUserId(userId);
 
-  const userResp = await fetchUserById(userId)
+  const userResp = await fetchUserById(userId);
 
   // if (!userIdExists) {
   //   try {
@@ -874,76 +889,80 @@ exports.registerDriverApplicationForm = async (req, res) => {
   };
 
   if (!userIdExists) {
-   try {
-     await aboutYouForm(aboutYouObj);
-     console.log("about form submitted successfully");
- 
-     await backgroundInformation(backgroundInfo);
-     console.log("backgroundInfo submitted successfully");
- 
-     await vehicleExperience(vehicleExperienceForm);
-     console.log("vehicleExperienceForm submitted successfully");
- 
-     await personalDetails(personalDetailForm);
-     console.log("personalDetailForm submitted successfully");
- 
-     await bankDetails(bankDetailForm);
-     console.log("bankDetailForm submitted successfully");
- 
-     await acknowledgeDetails(acknowledgeForm);
-     console.log("acknowledgeForm submitted successfully");
+    try {
+      await aboutYouForm(aboutYouObj);
+      console.log("about form submitted successfully");
 
-     let logObj={
-      name: userResp[0].name,
-      authority: userResp[0].roll,
-      effectedData: "resgister driver application ",
-      timestamp: new Date(),
-      action: "created"
+      await backgroundInformation(backgroundInfo);
+      console.log("backgroundInfo submitted successfully");
 
+      await vehicleExperience(vehicleExperienceForm);
+      console.log("vehicleExperienceForm submitted successfully");
+
+      await personalDetails(personalDetailForm);
+      console.log("personalDetailForm submitted successfully");
+
+      await bankDetails(bankDetailForm);
+      console.log("bankDetailForm submitted successfully");
+
+      await acknowledgeDetails(acknowledgeForm);
+      console.log("acknowledgeForm submitted successfully");
+
+      let logObj = {
+        name: userResp[0].name,
+        authority: userResp[0].roll,
+        effectedData: "resgister driver application ",
+        timestamp: new Date(),
+        action: "created",
+      };
+      // adding logs
+      await addLogs(logObj);
+      res
+        .status(201)
+        .json({ statusCode: 200, success: true, message: Msg.formSubmitted });
+    } catch (error) {
+      console.error("Error occurred:", error);
+      res.status(201).json({ sucess: false, error: Msg.internalError });
     }
-    // adding logs
-    await addLogs(logObj)
-     res
-       .status(201)
-       .json({ statusCode: 200, success: true, message: Msg.formSubmitted });
-   } catch (error) {
-    console.error("Error occurred:", error);
-    res
-      .status(201)
-      .json({ sucess: false, error: Msg.internalError });
-    
-   }
   } else {
-   try {
-     await updateAboutYouFormById(aboutYouObj, userId);
-     console.log("about form updated successfully");
-     // console.log(aboutYouForms)
- 
-     await updateBackgroundInformationbyId(backgroundInfo, userId);
-     console.log("backgroundInfo updated successfully");
- 
-     await updateVehicleExperienceById(vehicleExperienceForm, userId);
- 
-     console.log("vehicleExperienceForm updated successfully");
- 
-     await updatePersonalDetailsById(personalDetailForm, userId);
-     console.log("personalDetailForm updated successfully");
- 
-     await updateBankDetailsById(bankDetailForm, userId);
-     console.log("bankDetailForm updated successfully");
- 
-     await updateAcknowledgeDetailsById(acknowledgeForm, userId);
-     console.log("acknowledgeForm updated successfully");
-     res
-       .status(200)
-       .json({ statusCode: 200, success: true, message: Msg.formUpdated });
-   } catch (error) {
-    console.error("Error occurred:", error);
-    res
-      .status(201)
-      .json({ statusCode: 500, sucess: false, error: Msg.internalError });
-    
-   }
+    try {
+      await updateAboutYouFormById(aboutYouObj, userId);
+      console.log("about form updated successfully");
+      // console.log(aboutYouForms)
+
+      await updateBackgroundInformationbyId(backgroundInfo, userId);
+      console.log("backgroundInfo updated successfully");
+
+      await updateVehicleExperienceById(vehicleExperienceForm, userId);
+
+      console.log("vehicleExperienceForm updated successfully");
+
+      await updatePersonalDetailsById(personalDetailForm, userId);
+      console.log("personalDetailForm updated successfully");
+
+      await updateBankDetailsById(bankDetailForm, userId);
+      console.log("bankDetailForm updated successfully");
+
+      await updateAcknowledgeDetailsById(acknowledgeForm, userId);
+      console.log("acknowledgeForm updated successfully");
+      let logObj = {
+        name: userResp[0].name,
+        authority: userResp[0].roll,
+        effectedData: "updated driver application",
+        timestamp: new Date(),
+        action: "updated",
+      };
+      // adding logs
+      await addLogs(logObj);
+      res
+        .status(200)
+        .json({ statusCode: 200, success: true, message: Msg.formUpdated });
+    } catch (error) {
+      console.error("Error occurred:", error);
+      res
+        .status(201)
+        .json({ statusCode: 500, sucess: false, error: Msg.internalError });
+    }
   }
 };
 
@@ -951,6 +970,7 @@ let recordNo = 255201;
 exports.driverIncidentReportHandle = async (req, res) => {
   try {
     let { userId } = req.decoded;
+    const userResp = await fetchUserById(userId);
     const bankDetailData = req.body.find(
       (form) => form.formName === "Bank Detail"
     ).formData;
@@ -1035,6 +1055,16 @@ exports.driverIncidentReportHandle = async (req, res) => {
     await driverStatement(driverStatementData);
 
     recordNo++;
+
+    let logObj = {
+      name: userResp[0].name,
+      authority: userResp[0].roll,
+      effectedData: "register incident report ",
+      timestamp: new Date(),
+      action: "created",
+    };
+    // adding logs
+    await addLogs(logObj);
     res
       .status(200)
       .json({ statusCode: 200, success: true, message: Msg.formSubmitted });
@@ -1050,7 +1080,7 @@ let requestNo = 1100;
 exports.ppeRecordHandle = async (req, res) => {
   try {
     let { userId } = req.decoded;
-    const userResp = await fetchUserById(userId)
+    const userResp = await fetchUserById(userId);
     const ppeRecordData = req.body;
     const ppeRecordInfo = {
       requestNo: requestNo,
@@ -1061,18 +1091,16 @@ exports.ppeRecordHandle = async (req, res) => {
       userId: userId,
     };
 
-
     await ppeRecord(ppeRecordInfo);
-    let logObj={
+    let logObj = {
       name: userResp[0].name,
       authority: userResp[0].roll,
       effectedData: "submitted ppe request",
       timestamp: new Date(),
-      action: "created"
-
-    }
+      action: "created",
+    };
     // adding logs
-    await addLogs(logObj)
+    await addLogs(logObj);
 
     requestNo++;
     res
@@ -1102,42 +1130,42 @@ exports.getDriverIncidentReportHandle = async (req, res) => {
     const conditionRecord = condtionResp.find(
       (item) => item.id === parseInt(id)
     );
+    const imgeResp = await getIncidentReportImagesByUserId(id);
     const driverRecord = driverResp.find((item) => item.id === parseInt(id));
 
-    // console.log("police resp",policeResp)
-    // console.log("damageResp",damageResp)
-    // console.log("bankResp", bankResp)
-    // console.log("condtionResp", condtionResp)
-    // console.log("driverResp", driverResp)
+    const images = imgeResp.map(record => record.images);
+
+
 
     const formattedData = {
-      recordNo: bankRecord.recordNo,
-      clientName: bankRecord.clientName,
-      vehicleRegistrationNumber: bankRecord.vehicleRegistrationNumber,
-      incidentReportedTo: bankRecord.incidentReportedTo.join(", "),
-      dateTimeOfIncident: new Date(
-        conditionRecord.dateTimeOfIncident
-      ).toDateString(),
-      roadNumber: conditionRecord.roadNumber,
-      location: conditionRecord.location,
-      speedInMPH: conditionRecord.speedInMPH,
-      lightLevel: conditionRecord.lightLevel,
-      weather: conditionRecord.weather.join(", "),
-      roadCondition: conditionRecord.roadCondition,
-      PoliceInvolved: policeRecord.PoliceInvolved === "1" ? "Yes" : "No",
-      statementGiven: policeRecord.statementGiven === "1" ? "Yes" : "No",
+      recordNo: bankRecord?.recordNo ?? null,
+      clientName: bankRecord?.clientName ?? null,
+      vehicleRegistrationNumber: bankRecord?.vehicleRegistrationNumber ?? null,
+      incidentReportedTo: bankRecord?.incidentReportedTo?.join(", ") ?? null,
+      dateTimeOfIncident: conditionRecord?.dateTimeOfIncident
+        ? new Date(conditionRecord.dateTimeOfIncident).toDateString()
+        : null,
+      roadNumber: conditionRecord?.roadNumber ?? null,
+      location: conditionRecord?.location ?? null,
+      speedInMPH: conditionRecord?.speedInMPH ?? null,
+      lightLevel: conditionRecord?.lightLevel ?? null,
+      weather: conditionRecord?.weather?.join(", ") ?? null,
+      roadCondition: conditionRecord?.roadCondition ?? null,
+      PoliceInvolved: policeRecord?.PoliceInvolved === "1" ? "Yes" : "No",
+      statementGiven: policeRecord?.statementGiven === "1" ? "Yes" : "No",
       isVehicleDriveable:
-        damageRecord.isVehicleDriveable === "1" ? "Yes" : "No",
-      didTakePhotos: damageRecord.didTakePhotos,
-      wereYouInjured: damageRecord.wereYouInjured,
+        damageRecord?.isVehicleDriveable === "1" ? "Yes" : "No",
+      didTakePhotos: damageRecord?.didTakePhotos ?? null,
+      photos: damageRecord?.didTakePhotos === "Yes" ? images.map((img)=>`${baseurl}/temp/${img}`) : null,
+      wereYouInjured: damageRecord?.wereYouInjured ?? null,
       wereThereWitnesses:
-        damageRecord.wereThereWitnesses === "1" ? "Yes" : "No",
-      witnesses: damageRecord.witnesses || "",
-      liability: damageRecord.liability || "",
-      vehiclesInvolved: damageRecord.vehiclesInvolved === "1" ? "Yes" : "No",
-      wereYouOnMobile: damageRecord.wereYouOnMobile === "Yes" ? "Yes" : "No",
-      driverStatement: driverRecord.driverStatement,
-      signatureUrl: driverRecord.signatureUrl,
+        damageRecord?.wereThereWitnesses === "1" ? "Yes" : "No",
+      witnesses: damageRecord?.witnesses ?? "",
+      liability: damageRecord?.liability ?? "",
+      vehiclesInvolved: damageRecord?.vehiclesInvolved === "1" ? "Yes" : "No",
+      wereYouOnMobile: damageRecord?.wereYouOnMobile === "Yes" ? "Yes" : "No",
+      driverStatement: driverRecord?.driverStatement ?? null,
+      signatureUrl: driverRecord?.signatureUrl ?? null,
     };
 
     res.status(200).json({
@@ -1248,66 +1276,102 @@ exports.getPpeRecordsHandle = async (req, res) => {
     });
   } catch (error) {
     console.error("Error occurred:", error);
-    res
-      .status(201)
-      .json({ sucess: false, error: Msg.internalError });
+    res.status(201).json({ sucess: false, error: Msg.internalError });
   }
 };
 
 exports.getPpeRecordHandle = async (req, res) => {
   try {
-      const { id } = req.query;
-      let { userId } = req.decoded;
+    const { id } = req.query;
+    let { userId } = req.decoded;
 
-      const resp = await getPpeRecord(userId);
-      const record = resp.find((item) => item?.id === parseInt(id));
+    const resp = await getPpeRecord(userId);
+    const record = resp.find((item) => item?.id === parseInt(id));
 
-      if (record) {
-          // Initialize an array to store the formatted PPE details
-          let ppeDetails = [];
+    if (record) {
+      // Initialize an array to store the formatted PPE details
+      let ppeDetails = [];
 
-          // Iterate through each property of the record
-          Object.keys(record).forEach((key) => {
-              if (
-                  key !== "id" &&
-                  key !== "userId" &&
-                  key !== "submissionDate" &&
-                  key !== "requestNo" &&
-                  key.toLowerCase() !== "status" &&
-                  record[key] !== undefined &&
-                  record[key] !== null &&
-                  record[key] !== "" &&
-                  key.toLowerCase() !== "createdat" && // Exclude "CreatedAt" property
-                  key.toLowerCase() !== "approvedat" // Exclude "ApprovedAt" property
-              ) {
-                  // Format the property name
-                  const formattedName = key.replace(/([A-Z])/g, " $1").trim();
-                  const capitalizedFormattedName =
-                      formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+      // Iterate through each property of the record
+      Object.keys(record).forEach((key) => {
+        if (
+          key !== "id" &&
+          key !== "userId" &&
+          key !== "submissionDate" &&
+          key !== "requestNo" &&
+          key.toLowerCase() !== "status" &&
+          record[key] !== undefined &&
+          record[key] !== null &&
+          record[key] !== "" &&
+          key.toLowerCase() !== "createdat" && // Exclude "CreatedAt" property
+          key.toLowerCase() !== "approvedat" // Exclude "ApprovedAt" property
+        ) {
+          // Format the property name
+          const formattedName = key.replace(/([A-Z])/g, " $1").trim();
+          const capitalizedFormattedName =
+            formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
 
-                  // Push the formatted PPE detail object to the ppeDetails array
-                  ppeDetails.push({
-                      name: capitalizedFormattedName,
-                      ...record[key],
-                  });
-              }
+          // Push the formatted PPE detail object to the ppeDetails array
+          ppeDetails.push({
+            name: capitalizedFormattedName,
+            ...record[key],
           });
-
-          // Update the record data to include the ppeDetails array
-          record["ppeDetails"] = ppeDetails;
-      }
-
-      res.status(200).json({
-          statusCode: 200,
-          success: true,
-          message: Msg.ppeRequest,
-          data: record,
+        }
       });
+
+      // Update the record data to include the ppeDetails array
+      record["ppeDetails"] = ppeDetails;
+    }
+
+    res.status(200).json({
+      statusCode: 200,
+      success: true,
+      message: Msg.ppeRequest,
+      data: record,
+    });
   } catch (error) {
-      console.error("Error occurred:", error);
-      res
-          .status(201)
-          .json({ statusCode: 201, success: false, error: Msg.internalError });
+    console.error("Error occurred:", error);
+    res
+      .status(201)
+      .json({ statusCode: 201, success: false, error: Msg.internalError });
   }
 };
 
+exports.addImagesInIncidentReport = async (req, res) => {
+  try {
+    let { userId } = req.decoded;
+    //const { images } = req.body;
+    const resp = await getAllDamageProperty();
+    if (!req.files) {
+      return res.status(201).json({
+        success: false,
+        msg: Msg.provideImages,
+      });
+    }
+ 
+    const imgPaths = req.files.map((file) => file.filename);
+    console.log(imgPaths);
+
+    const uploadPromises = imgPaths.map((image) => {
+      let obj = {
+        images: image,
+        userId,
+        reportId: resp.length + 1,
+      };
+      incidentReportImages(obj)
+    });
+
+    await Promise.all(uploadPromises);
+
+    return res.status(200).json({
+      success: true,
+      msg: Msg.imagesUploaded
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(201).json({
+      success: true,
+      msg: Msg.err,
+    });
+  }
+};

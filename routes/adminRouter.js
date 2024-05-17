@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 const controller = require('../controllers/index')
 const { authenticateToken } = require('../helpers/middleware')
+const { upload} = require("../helpers/multer")
 
 
 
@@ -14,6 +15,7 @@ app.post('/resetPassword', controller.adminController.resetPassword)
 
 app.get('/allPpeRequest', authenticateToken, controller.adminController.allPpeRequests )
 app.get('/allIncidentReports', authenticateToken, controller.adminController.allIncidentReports )
+
 app.get('/allRequests', authenticateToken, controller.adminController.allRequests )
 app.get('/ppeRequestOne', authenticateToken, controller.adminController.ppeRequestOnlyOne)
 app.get('/ppeRequestByDate', authenticateToken, controller.adminController.ppeReportSortByDate)

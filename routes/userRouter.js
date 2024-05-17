@@ -1,6 +1,8 @@
 const express = require('express')
 const app = express()
 const controller = require('../controllers/index')
+const upload = require("../helpers/multer")
+
 const { userLogin, userSighUp, passwordVallidate, handleValidationErrors } = require('../helpers/vallidation')
 const { authenticateToken } = require('../helpers/middleware')
 // const uploads = require('../helper/fileUpload').upload
@@ -17,6 +19,7 @@ app.post("/changePassword", passwordVallidate, handleValidationErrors, controlle
 app.post('/driverApplicationForm', authenticateToken, controller.userController.registerDriverApplicationForm)
 app.post("/driverReport", authenticateToken, controller.userController.driverIncidentReportHandle)
 app.post("/ppeRecord", authenticateToken, controller.userController.ppeRecordHandle )
+app.post('/incidentReportImg', authenticateToken, upload.array('images'),   controller.userController.addImagesInIncidentReport )
 
 //app.get("/driverApplication", authenticateToken, controller.userController.getDriverApplicationHandle)
 

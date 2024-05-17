@@ -30,7 +30,7 @@ const messages = {
     allFieldsRequired: 'all fields are required',
     setStatusCred:'Both id and status are required',
     ppeRequestUpdated: 'Status updated successfully',
-    ppeRequestUpdatedFailed: 'Failed to update PPE request status',
+    ppeRequestUpdatedFailed: 'Failed to update PPE request status',  
     allDriverApplications: 'All Reports',
     adminRegister:'registered successfully',
     accountDeactiveated: 'your account temporarily deactivated',
@@ -40,7 +40,9 @@ const messages = {
     failedToResest:'Failed to reset password',
     otpSent: 'OTP sent successfully',
     passwordUpdated: 'password update successfully',
-    formUpdated: "form updated successfully"
+    formUpdated: "form updated successfully",
+    imagesUploaded: "Great! Your images have been uploaded",
+    provideImages: "Oops! It looks like you forgot to upload images. Please try again"
 
 
     // Add more messages as needed

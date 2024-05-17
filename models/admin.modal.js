@@ -118,10 +118,16 @@ module.exports = {
   },
 
   updateAdminPasswordByEmail: async (obj) => {
-    return db.query(`UPDATE admins SET password = ? WHERE email = ?`, [
-      obj.email,
-      obj.password,
-    ]);
+    try {
+      return db.query(`UPDATE admins SET password = ? WHERE email = ?`, [
+        obj.password,
+        obj.email,
+      ]);
+      
+    } catch (error) {
+      console.log(error);
+      
+    }
   },
 
   updateAdminOtpToNullByEmail: async (email) => {
