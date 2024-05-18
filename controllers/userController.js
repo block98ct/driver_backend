@@ -2,7 +2,7 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
+const nodemailer = require("nodemailer");  
 const hbs = require("nodemailer-express-handlebars");
 const secretKey = process.env.JWT_SECRET_KEY;
 const localStorage = require("localStorage");
@@ -41,7 +41,7 @@ const {
   setUserLoginStatus,
   updateAboutYouFormById,
   updateBackgroundInformationbyId,
-  updateVehicleExperienceById,
+  updateVehicleExperienceById,  
   updatePersonalDetailsById,
   updateBankDetailsById,
   updateAcknowledgeDetailsById,
@@ -55,6 +55,7 @@ const {
 } = require("../models/user.model");
 
 const { addLogs } = require("../models/admin.modal");
+const { log } = require("util");
 
 var transporter = nodemailer.createTransport({
   // service: 'gmail',
@@ -67,18 +68,24 @@ var transporter = nodemailer.createTransport({
   },
 });
 
+
 const handlebarOptions = {
   viewEngine: {
-    partialsDir: path.resolve(__dirname + "/view/"),
+    extName: '.handlebars',
+    partialsDir: path.join(__dirname, '../view/'),
+    layoutsDir: path.join(__dirname, '../view/'),
     defaultLayout: false,
   },
-  viewPath: path.resolve(__dirname + "/view/"),
+  viewPath: path.join(__dirname, '../view/'),
+  extName: '.handlebars',
 };
 
 transporter.use("compile", hbs(handlebarOptions));
 
 exports.userRegister = async (req, res) => {
   try {
+
+  //  console.log(path.resolve(__dirname + "../view/"));
     let { name, email, mobileNumber, password } = req.body;
     const act_token = await generateRandomString(8);
     let checkUser = await fetchUserByEmail(email);
@@ -101,6 +108,7 @@ exports.userRegister = async (req, res) => {
       };
       transporter.sendMail(mailOptions, async function (error, info) {
         if (error) {
+          console.log(error)
           return res.json({
             success: false,
             message: "Mail Not delivered",
@@ -268,12 +276,12 @@ exports.verifyUser = async (req, res) => {
       if (data.length !== 0) {
         const result = await updateUserByActToken(data[0]?.id);
         if (result.affectedRows) {
-          res.sendFile(__dirname + "/view/signupSucessPage.html");
+          return res.sendFile(path.join(__dirname, '../view/signupSucessPage.html'));
         } else {
-          res.sendFile(__dirname + "/view/notverify.html");
+          return res.sendFile(path.join(__dirname, '../view/notverify.html'));
         }
       } else {
-        res.sendFile(__dirname + "/view/notverify.html");
+        return res.sendFile(path.join(__dirname, '../view/notverify.html'));
       }
     }
   } catch (error) {
@@ -297,11 +305,11 @@ exports.verifyPasswordFn = async (req, res) => {
       const token = result[0]?.actToken;
       if (result.length !== 0) {
         localStorage.setItem("vertoken", JSON.stringify(token));
-        res.render(path.join(__dirname, "/view/", "forgetPassword.ejs"), {
+        res.render(path.join(__dirname, "../view/", "forgetPassword.ejs"), {
           msg: "",
         });
       } else {
-        res.render(path.join(__dirname, "/view/", "forgetPassword.ejs"), {
+        res.render(path.join(__dirname, "../view/", "forgetPassword.ejs"), {
           msg: Msg.userNotRegister,
         });
       }
@@ -392,11 +400,11 @@ exports.changePassword = async (req, res) => {
       let newPassword = await hashPassword(confirm_password);
       const result2 = await updatePassword(newPassword, token);
       if (result2) {
-        res.sendFile(path.join(__dirname + "/view/message.html"), {
+        res.sendFile( path.join(__dirname, '../view/message.html'),{
           msg: "",
         });
       } else {
-        res.render(path.join(__dirname, "/view/", "forgetPassword.ejs"), {
+        res.render(path.join(__dirname, "../view/", "forgetPassword.ejs"), {
           msg: Msg.internalError,
         });
       }
@@ -408,7 +416,7 @@ exports.changePassword = async (req, res) => {
       });
     }
   } else {
-    res.render(path.join(__dirname, "/view/", "forgetPassword.ejs"), {
+    res.render(path.join(__dirname, "../view/", "forgetPassword.ejs"), {
       msg: Msg.pwdNotMatch,
     });
   }
